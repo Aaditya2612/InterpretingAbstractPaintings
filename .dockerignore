@@ -1,0 +1,22 @@
+# --- Runtime ---
+__pycache__/
+*.pyc
+.cache/
+.tmp/
+.env
+dataset/
+models/
+nlp/
+utils/
+webapp/
+training/
+*.pt
+*.bin
+*.safetensors
+temp_image.png
+heatmap_result.jpg
+.git/
+.gitignore
+README.md
+Dockerfile
+.dockerignore

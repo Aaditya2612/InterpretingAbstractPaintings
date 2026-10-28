@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Model cache + runtime artefacts
+.cache/
+.tmp/
+*.pt
+*.bin
+*.safetensors
+*.onnx
+
+# Secrets
+.env
+
+# Upload / scratch files
+temp_image.png
+heatmap_result.jpg
+*.tmp
+
+# Training data (kept out of the web app repo — see README)
+dataset/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

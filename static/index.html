@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chroma — Abstract Painting Interpreter</title>
+  <meta name="description" content="Upload an abstract painting and let AI analyze, caption and interpret it." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>" />
+</head>
+<body>
+  <div class="grain"></div>
+
+  <header class="site-header">
+    <a class="brand" href="#">
+      <span class="brand-mark">◐</span>
+      <span class="brand-name">Chroma</span>
+    </a>
+    <div class="header-status">
+      <span id="engineBadge" class="pill pill--muted" hidden></span>
+      <span id="healthDot" class="health-dot" title="Server status"></span>
+      <span id="healthText" class="health-text">connecting…</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- HERO -->
+    <section class="hero">
+      <p class="hero-kicker">AI · ART · INTERPRETATION</p>
+      <h1 class="hero-title">See the meaning<br />inside the abstract.</h1>
+      <p class="hero-sub">
+        Upload a painting and a machine-vision studio will analyse its colour,
+        texture and composition, then write you an interpretation of what it sees.
+      </p>
+    </section>
+
+    <!-- UPLOAD -->
+    <section class="dropzone-wrap">
+      <div id="dropzone" class="dropzone" role="button" tabindex="0" aria-label="Upload a painting">
+        <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp" hidden />
+        <div class="dropzone-inner">
+          <div class="dropzone-icon">⌃</div>
+          <p class="dropzone-title">Drop your painting here</p>
+          <p class="dropzone-sub">or <span class="link">browse files</span> · PNG, JPG, WEBP</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SAMPLES -->
+    <section class="samples" aria-label="Example paintings">
+      <div class="samples-head">
+        <span class="samples-title">No painting handy? Try one of these</span>
+        <button id="samplesShuffle" class="ghost-btn" title="Show different examples">Shuffle ↻</button>
+      </div>
+      <div id="sampleGrid" class="sample-grid"></div>
+    </section>
+
+    <!-- PROGRESS -->
+    <section id="progress" class="progress" hidden>
+      <div class="progress-steps" id="progressSteps">
+        <div class="step" data-step="features"><i class="step-dot"></i><span>Analysing visual features</span></div>
+        <div class="step" data-step="concepts"><i class="step-dot"></i><span>Detecting concepts</span></div>
+        <div class="step" data-step="caption"><i class="step-dot"></i><span>Captioning</span></div>
+        <div class="step" data-step="heatmap"><i class="step-dot"></i><span>Mapping attention</span></div>
+        <div class="step" data-step="interpret"><i class="step-dot"></i><span>Writing interpretation</span></div>
+      </div>
+    </section>
+
+    <!-- RESULTS -->
+    <section id="results" class="results" hidden>
+      <div class="results-meta">
+        <span id="resultName" class="result-name"></span>
+        <span class="result-badges">
+          <span id="resultEngine" class="pill"></span>
+          <span id="resultTime" class="pill pill--muted"></span>
+        </span>
+      </div>
+
+      <div class="results-grid">
+        <!-- Left: image + heatmap -->
+        <div class="viewer-col">
+          <div class="viewer">
+            <div class="viewer-tabs" role="tablist">
+              <button class="viewer-tab is-active" data-view="original" role="tab">Original</button>
+              <button class="viewer-tab" data-view="heatmap" role="tab">AI Attention</button>
+            </div>
+            <div class="viewer-canvas">
+              <img id="originalImg" alt="Uploaded painting" />
+              <img id="heatmapImg" alt="AI attention heatmap overlay" hidden />
+              <div class="viewer-hint">Hover to compare · tap to switch</div>
+            </div>
+            <button id="compareToggle" class="compare-toggle" title="Hold to compare">Compare</button>
+          </div>
+
+          <div class="interpretation card">
+            <div class="card-head">
+              <h2 class="card-title">Interpretation</h2>
+              <span class="card-accent"></span>
+            </div>
+            <p id="interpretationText" class="interpretation-text"></p>
+            <div class="caption-line">
+              <span class="caption-label">What the model sees</span>
+              <span id="captionText" class="caption-text"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: concepts + features -->
+        <div class="info-col">
+          <div class="concepts card">
+            <div class="card-head">
+              <h2 class="card-title">Artistic Concepts</h2>
+              <span class="card-accent"></span>
+            </div>
+            <ul id="conceptsList" class="concepts-list"></ul>
+          </div>
+
+          <div class="features card">
+            <div class="card-head">
+              <h2 class="card-title">Visual Metrics</h2>
+              <span class="card-accent"></span>
+            </div>
+            <div id="featuresGrid" class="features-grid"></div>
+            <div class="palette">
+              <span class="palette-label">Dominant palette</span>
+              <div id="paletteSwatches" class="palette-swatches"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="analyzeAnother" class="primary-btn">Analyse another ↺</button>
+      </div>
+    </section>
+
+    <section id="error" class="error" hidden>
+      <div class="error-box">
+        <p id="errorText"></p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Chroma · an AI interpreter for abstract paintings</p>
+  </footer>
+
+  <script src="/static/app.js" defer></script>
+</body>
+</html>
