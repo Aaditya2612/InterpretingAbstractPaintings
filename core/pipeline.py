@@ -107,6 +107,11 @@ def run(image_bytes: bytes, original_name: str = "upload") -> dict:
         recognition.get("emotions", []), feats
     )[:3]
 
+    # Blend geometric structure into the subject scores (same idea).
+    recognition["subjects"] = recognizer.rebalance_subjects(
+        recognition.get("subjects", []), feats
+    )[:4]
+
     description = describer.describe(recognition, feats)
     try:
         interpretation_text, engine = interpreter.interpret(recognition, feats, description)

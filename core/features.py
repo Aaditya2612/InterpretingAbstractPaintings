@@ -54,10 +54,58 @@ def _edge_chaos(rgb: np.ndarray) -> float:
     return float(np.count_nonzero(edges) / edges.size)
 
 
+def _corr(a: np.ndarray, b: np.ndarray) -> float:
+    """Normalised correlation coefficient, clamped to 0..1."""
+    a = a - a.mean()
+    b = b - b.mean()
+    denom = float(np.sqrt((a @ a) * (b @ b)))
+    if denom < 1e-6:
+        return 1.0
+    return max(0.0, min(1.0, float((a @ b) / denom)))
+
+
 def _symmetry_score(rgb: np.ndarray) -> float:
-    flipped = cv2.flip(rgb, 1)
-    diff = np.mean(np.abs(rgb.astype(np.float32) - flipped.astype(np.float32)))
-    return float(1.0 / (1.0 + diff))
+    """Left-vs-right mirror symmetry via correlation of the two halves.
+
+    Compares the left half against the *mirrored* right half, so the result is a
+    genuine 0..1 measure of bilateral symmetry (not the old 1/(1+diff) formula
+    that collapsed everything to ~0.02).
+    """
+    gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY).astype(np.float32)
+    h, w = gray.shape
+    left = gray[:, : w // 2]
+    right = cv2.flip(gray[:, w // 2 :], 1)
+    n = min(left.shape[1], right.shape[1])
+    return _corr(left[:, :n].ravel(), right[:, :n].ravel())
+
+
+def _structure_metrics(rgb: np.ndarray) -> dict:
+    """Geometric structure signals used to guide subject detection.
+
+    - ``horizontal``: 0..1, proportion of edge energy in horizontal bands
+      (vertical gradient) vs vertical lines (horizontal gradient).
+    - ``rotational``: 0..1, correlation with a 90° rotation — high for
+      radial / concentric forms (flowers, mandalas, whirlpools, sunbursts).
+    """
+    gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY).astype(np.float32)
+    gx = cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3)
+    gy = cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3)
+    h_energy = float(np.sum(np.abs(gy)))
+    v_energy = float(np.sum(np.abs(gx)))
+    total = h_energy + v_energy + 1e-6
+    horizontal = h_energy / total
+
+    h, w = gray.shape
+    n = min(h, w)
+    top, left = (h - n) // 2, (w - n) // 2
+    sq = gray[top : top + n, left : left + n]
+    rot = cv2.rotate(sq, cv2.ROTATE_90_CLOCKWISE)
+    rotational = _corr(sq.ravel(), rot.ravel())
+
+    return {
+        "horizontal": round(horizontal, 3),
+        "rotational": round(rotational, 3),
+    }
 
 
 def _texture_complexity(rgb: np.ndarray) -> float:
@@ -186,5 +234,6 @@ def analyze(image_path: str, max_dim: int = 512) -> dict:
         "texture_complexity": _r(_texture_complexity(rgb)),
         "contrast": _r(float(np.std(cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)))),
         "dominant_colors": _dominant_colors(rgb),
+        "structure": _structure_metrics(rgb),
         "resolution": {"width": int(rgb.shape[1]), "height": int(rgb.shape[0])},
     }

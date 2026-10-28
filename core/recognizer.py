@@ -148,11 +148,11 @@ _TEMPLATES = {
     "emotions": ["a painting that feels {}", "artwork expressing {}", "{}"],
 }
 
-# (name, vocabulary, top_k). Emotions return the full list so colour rebalancing
-# can promote/demote across the whole vocabulary before the top few are picked.
+# (name, vocabulary, top_k). Subjects and emotions return the full list so their
+# rebalancing can promote/demote across the whole vocabulary before top-k is picked.
 _CATEGORIES = [
     ("concepts", CONCEPTS, 5),
-    ("subjects", SUBJECTS, 4),
+    ("subjects", SUBJECTS, len(SUBJECTS)),
     ("themes", THEMES, 3),
     ("emotions", EMOTIONS, len(EMOTIONS)),
 ]
@@ -169,6 +169,8 @@ _PRIORS = {
         "swirling smoke": 0.70,
         "drifting clouds": 0.82,
         "ocean waves": 0.88,
+        "weather patterns": 0.70,
+        "a plume of ink": 0.70,
     },
     "themes": {
         "freedom and movement": 0.80,
@@ -320,5 +322,52 @@ def rebalance_emotions(emotions: list[dict], features: dict) -> list[dict]:
         elif boost:
             score *= 3.0
         out.append({"label": label, "score": round(float(score), 4)})
+    out.sort(key=lambda x: -x["score"])
+    return out
+
+
+# --- Geometry-grounded subject rebalancing ----------------------------------
+
+# Subjects grouped by the low-level structure they imply. Blended with CLIP so
+# subject detection uses two independent signals (semantic + geometric).
+_HORIZONTAL_SUBJECTS = {
+    "rolling hills", "ocean waves", "a desert vista", "ocean currents", "sand dunes",
+    "mountain ridges", "a river delta", "sea foam", "a field of wildflowers",
+    "weather patterns", "a winding canyon", "a sunrise", "a lunar surface",
+}
+_VERTICAL_SUBJECTS = {
+    "a forest canopy", "tree branches", "rain on glass", "a city skyline",
+    "a rushing waterfall", "lava flows", "aurora borealis",
+}
+_RADIAL_SUBJECTS = {
+    "flower petals", "a blooming garden", "a whirlpool", "constellations",
+    "a spider's web", "geometric patterns", "coral reefs",
+    "nebulae in space", "lichen on stone", "a topographic map",
+}
+
+
+def rebalance_subjects(subjects: list[dict], features: dict) -> list[dict]:
+    """Re-weight subject scores with the image's geometric structure.
+
+    CLIP text matching is weakest for abstract art; geometry is a reliable,
+    independent signal. Horizontal banding favours landscapes/seas/skies,
+    vertical lines favour forests/cities/rain, and rotational symmetry favours
+    flowers/mandalas/whirlpools.
+    """
+    structure = features.get("structure", {})
+    horizontal = structure.get("horizontal", 0.5)   # >0.5 = horizontal bands
+    rotational = structure.get("rotational", 0.0)   # 0..1
+
+    out = []
+    for s in subjects:
+        label, score = s["label"], s["score"]
+        m = 1.0
+        if label in _RADIAL_SUBJECTS:
+            m *= 0.7 + 1.6 * rotational
+        if label in _HORIZONTAL_SUBJECTS:
+            m *= 1.0 + 1.2 * (horizontal - 0.5)
+        if label in _VERTICAL_SUBJECTS:
+            m *= 1.0 + 1.2 * (0.5 - horizontal)
+        out.append({"label": label, "score": round(float(score * m), 4)})
     out.sort(key=lambda x: -x["score"])
     return out
