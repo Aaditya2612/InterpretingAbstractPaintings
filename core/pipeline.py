@@ -101,10 +101,11 @@ def run(image_bytes: bytes, original_name: str = "upload") -> dict:
     if not isinstance(recognition, dict):
         recognition = {"concepts": [], "subjects": [], "themes": [], "emotions": []}
 
-    # Blend colour psychology into the emotion scores.
+    # Blend colour psychology into the emotion scores (over the full list, then
+    # keep the top few).
     recognition["emotions"] = recognizer.rebalance_emotions(
         recognition.get("emotions", []), feats
-    )
+    )[:3]
 
     description = describer.describe(recognition, feats)
     try:
