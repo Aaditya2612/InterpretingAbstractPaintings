@@ -70,8 +70,10 @@ def describe(concepts: list[dict], features: dict) -> str:
     sentence = f"This reads as {opener}."
     if secondary_phrase:
         sentence += f" It carries echoes of {secondary_phrase}."
+    mood = _mood_phrase(features)
+    article = "an" if mood[0] in "aeiou" else "a"
     sentence += (
-        f" A {_palette_phrase(features)} palette gives it a {_mood_phrase(features)} mood, "
+        f" A {_palette_phrase(features)} palette gives it {article} {mood} mood, "
         f"and the composition moves with {_energy_phrase(features)}."
     )
     return sentence

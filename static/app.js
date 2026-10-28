@@ -28,6 +28,9 @@
 
   const STAGE_ORDER = ["features", "concepts", "caption", "heatmap", "interpret"];
 
+  // Bump this whenever the result schema changes to invalidate old caches.
+  const CACHE_VERSION = "v2";
+
   // ---- Health ------------------------------------------------------------
   async function checkHealth() {
     const dot = $("#healthDot");
@@ -90,7 +93,7 @@
 
   function cacheGet(key) {
     try {
-      const raw = localStorage.getItem("chroma:" + key);
+      const raw = localStorage.getItem("chroma:" + CACHE_VERSION + ":" + key);
       return raw ? JSON.parse(raw) : null;
     } catch {
       return null;
@@ -98,7 +101,7 @@
   }
   function cacheSet(key, value) {
     try {
-      localStorage.setItem("chroma:" + key, JSON.stringify(value));
+      localStorage.setItem("chroma:" + CACHE_VERSION + ":" + key, JSON.stringify(value));
     } catch { /* quota / privacy */ }
   }
 
