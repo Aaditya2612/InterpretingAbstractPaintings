@@ -3,21 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Chroma — Abstract Painting Interpreter</title>
-  <meta name="description" content="Upload an abstract painting and let AI analyze, caption and interpret it." />
+  <title>Misty Edges — Interpreting Abstract Paintings</title>
+  <meta name="description" content="Upload an abstract painting and let AI analyse its subject, themes, emotions and meaning." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/styles.css" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>" />
 </head>
 <body>
   <div class="grain"></div>
 
   <header class="site-header">
     <a class="brand" href="#">
-      <span class="brand-mark">◐</span>
-      <span class="brand-name">Chroma</span>
+      <span class="brand-name">Misty Edges</span>
     </a>
     <div class="header-status">
       <span id="engineBadge" class="pill pill--muted" hidden></span>
@@ -29,12 +27,13 @@
   <main>
     <!-- HERO -->
     <section class="hero">
-      <p class="hero-kicker">AI · ART · INTERPRETATION</p>
-      <h1 class="hero-title">See the meaning<br />inside the abstract.</h1>
-      <p class="hero-sub">
-        Upload a painting and a machine-vision studio will analyse its colour,
-        texture and composition, then write you an interpretation of what it sees.
-      </p>
+      <h1 class="hero-title">Interpreting Abstract Paintings</h1>
+      <div class="hero-sub-box">
+        <p class="hero-sub">
+          Upload a painting and a machine-vision studio will analyse its colour,
+          texture and composition, then write you an interpretation of what it sees.
+        </p>
+      </div>
     </section>
 
     <!-- UPLOAD -->
@@ -62,8 +61,7 @@
     <section id="progress" class="progress" hidden>
       <div class="progress-steps" id="progressSteps">
         <div class="step" data-step="features"><i class="step-dot"></i><span>Analysing visual features</span></div>
-        <div class="step" data-step="concepts"><i class="step-dot"></i><span>Detecting concepts</span></div>
-        <div class="step" data-step="caption"><i class="step-dot"></i><span>Captioning</span></div>
+        <div class="step" data-step="recognize"><i class="step-dot"></i><span>Recognising subject &amp; mood</span></div>
         <div class="step" data-step="heatmap"><i class="step-dot"></i><span>Mapping attention</span></div>
         <div class="step" data-step="interpret"><i class="step-dot"></i><span>Writing interpretation</span></div>
       </div>
@@ -108,8 +106,27 @@
           </div>
         </div>
 
-        <!-- Right: concepts + features -->
+        <!-- Right: reading + concepts + features -->
         <div class="info-col">
+          <div class="reading card">
+            <div class="card-head">
+              <h2 class="card-title">Reading</h2>
+              <span class="card-accent"></span>
+            </div>
+            <div class="reading-block">
+              <span class="reading-label">Subject</span>
+              <div id="subjectChips" class="chip-row"></div>
+            </div>
+            <div class="reading-block">
+              <span class="reading-label">Themes</span>
+              <div id="themeChips" class="chip-row"></div>
+            </div>
+            <div class="reading-block">
+              <span class="reading-label">Emotions</span>
+              <div id="emotionChips" class="chip-row"></div>
+            </div>
+          </div>
+
           <div class="concepts card">
             <div class="card-head">
               <h2 class="card-title">Artistic Concepts</h2>
@@ -145,7 +162,7 @@
   </main>
 
   <footer class="site-footer">
-    <p>Chroma · an AI interpreter for abstract paintings</p>
+    <p>Misty Edges · an AI interpreter for abstract paintings</p>
   </footer>
 
   <script src="/static/app.js" defer></script>

@@ -1,4 +1,4 @@
-# Render Blueprint — deploys Chroma as a Docker web service.
+# Render Blueprint — deploys Misty Edges as a Docker web service.
 # Docs: https://render.com/docs/blueprint-spec
 #
 # NOTE: the ML models (CLIP + ResNet-50) need roughly 1 GB of RAM, so use the
@@ -7,7 +7,7 @@
 
 services:
   - type: web
-    name: chroma
+    name: misty-edges
     runtime: docker
     repo: https://github.com/Aaditya2612/InterpretingAbstractPaintings
     plan: standard

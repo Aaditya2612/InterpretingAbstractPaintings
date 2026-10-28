@@ -1,5 +1,5 @@
 ---
-title: Chroma — Abstract Painting Interpreter
+title: Misty Edges — Interpreting Abstract Paintings
 emoji: 🎨
 colorFrom: indigo
 colorTo: purple
@@ -8,31 +8,31 @@ app_port: 8000
 pinned: false
 ---
 
-# 🎨 Chroma — Abstract Painting Interpreter
+# 🎨 Misty Edges — Interpreting Abstract Paintings
 
-Upload an abstract painting and let a machine-vision studio analyse its colour,
-texture and composition, then write you a thoughtful interpretation of what it
-sees.
+Upload an abstract painting and a machine-vision studio will analyse what it
+resembles, the themes and emotions it carries, and then write you a thoughtful
+interpretation of what it sees.
 
-Chroma combines three vision models with an LLM critic:
+Misty Edges runs three recognisers plus an interpreter:
 
 | Stage | Model | What it produces |
 | --- | --- | --- |
 | Visual features | OpenCV (classical CV) | Colour diversity, colourfulness, symmetry, edge chaos, texture, dominant palette |
-| Concept tagging | CLIP (`clip-vit-base-patch32`) | Ranked artistic concepts with confidence |
-| Description | derived from CLIP + features | A short, on-theme summary of what the painting is |
+| Subject / Theme / Emotion recognition | CLIP (`clip-vit-base-patch32`) | What the forms resemble, the underlying themes, and the emotional tone |
+| Artistic concepts | CLIP (`clip-vit-base-patch32`) | Ranked art-style descriptors with confidence |
 | Attention map | ResNet-50 + Grad-CAM | A heatmap of where the model "looks" |
-| Interpretation | Groq LLaMA (or local fallback) | A 5–7 sentence art-critic write-up |
+| Interpretation | Groq LLaMA (or local fallback) | A 5–7 sentence, original art-critic write-up |
 
 ## ✨ Why it's fast
 
 - **Models load once** at startup (warmed in the background) and are reused.
-- **Parallel inference** — concept tagging and the heatmap run concurrently.
+- **Parallel inference** — recognition and the heatmap run concurrently.
 - **Result caching** by image hash — repeat uploads and the sample gallery
   resolve instantly (both server- and client-side).
 - **Aggressive downscaling** of large uploads before inference.
-- **No caption model** — the description is derived from CLIP concepts, cutting
-  ~1 GB of weights and the slowest inference step.
+- **One recognition pass** — subjects, themes, emotions and concepts are scored
+  by a single CLIP forward pass.
 - **CPU-friendly** — works without a GPU, with configurable thread count.
 
 ## 🚀 Run it locally
@@ -68,21 +68,21 @@ Open <http://localhost:8000>.
 ### Without an API key
 
 The app is fully functional **without** `GROQ_API_KEY` — it falls back to a
-deterministic local interpreter built from the detected features, description
-and concepts. Add a key to upgrade to a large-language-model critic.
+varied local interpreter built from the detected subject, themes, emotions and
+features. Add a key to upgrade to a large-language-model critic.
 
 ## 🐳 Run with Docker
 
 ```bash
-docker build -t chroma .
-docker run -p 8000:8000 -e GROQ_API_KEY=your_key_here chroma
+docker build -t misty-edges .
+docker run -p 8000:8000 -e GROQ_API_KEY=your_key_here misty-edges
 ```
 
 ## ☁️ Deploy
 
 See **[DEPLOY.md](./DEPLOY.md)** for step-by-step guides.
 
-TL;DR — Chroma is a single Dockerised FastAPI app and needs ~1 GB RAM:
+TL;DR — Misty Edges is a single Dockerised FastAPI app and needs ~1 GB RAM:
 
 - **Oracle Cloud "Always Free" (free forever, India regions)** — the best free
   option: a 2-core / 12 GB ARM VM at no cost. See DEPLOY.md for step-by-step.
@@ -104,7 +104,7 @@ All settings are read from environment variables (see `.env.example`):
 | --- | --- | --- |
 | `GROQ_API_KEY` | *(empty)* | Enables LLM interpretation |
 | `GROQ_MODEL` | `llama-3.3-70b-versatile` | Groq model |
-| `CLIP_MODEL` | `openai/clip-vit-base-patch32` | Concept tagger |
+| `CLIP_MODEL` | `openai/clip-vit-base-patch32` | Recognition model |
 | `MAX_INPUT_DIM` | `384` | Downscale limit for inputs |
 | `TORCH_THREADS` | `4` | Threads per inference process |
 | `WARMUP` | `1` | Pre-load models on startup |
@@ -116,11 +116,11 @@ All settings are read from environment variables (see `.env.example`):
 app.py               FastAPI server
 core/                Analysis engine
   config.py            settings
-  features.py          OpenCV visual metrics
-  tagger.py            CLIP concept tagging
-  describer.py         concept-derived description
+  features.py          OpenCV visual metrics + palette
+  recognizer.py        CLIP subject / theme / emotion / concept recognition
+  describer.py         short "what it sees" description
   heatmap.py           ResNet-50 Grad-CAM
-  interpreter.py       Groq + local fallback
+  interpreter.py       Groq + varied local fallback
   pipeline.py          orchestration + caching
 static/              Frontend (HTML / CSS / JS, no build step)
   samples/             example paintings

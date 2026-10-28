@@ -72,31 +72,100 @@ def _brightness_saturation(rgb: np.ndarray) -> tuple[float, float]:
     return float(np.mean(hsv[:, :, 2])), float(np.mean(hsv[:, :, 1]))
 
 
+def _color_name(h: float, s: float, v: float) -> str:
+    """A human name for an HSV colour (h in degrees, s/v in 0..1)."""
+    if s < 0.12:
+        if v < 0.22:
+            return "near-black"
+        if v > 0.86:
+            return "near-white"
+        return "grey"
+    if h < 15 or h >= 345:
+        base = "red"
+    elif h < 45:
+        base = "orange"
+    elif h < 70:
+        base = "yellow"
+    elif h < 160:
+        base = "green"
+    elif h < 200:
+        base = "cyan"
+    elif h < 260:
+        base = "blue"
+    elif h < 300:
+        base = "purple"
+    else:
+        base = "magenta"
+
+    if v < 0.32:
+        return f"deep {base}"
+    if s < 0.35:
+        return f"muted {base}"
+    if v > 0.80 and s > 0.55:
+        return f"bright {base}"
+    if v > 0.74:
+        return f"pale {base}"
+    return base
+
+
 def _dominant_colors(rgb: np.ndarray, n: int = 5) -> list[dict]:
-    """Top-n dominant colours via k-means on a downsampled image."""
+    """Top-n *distinct* colours.
+
+    K-means runs in RGB, but clusters are merged by perceptual (Lab) distance so
+    we don't return several near-identical shades. Only genuinely different
+    colours survive.
+    """
     small = cv2.resize(rgb, (64, 64), interpolation=cv2.INTER_AREA)
     data = small.reshape(-1, 3).astype(np.float32)
-    k = min(n, 8)
+
+    k = 8
     _, labels, centers = cv2.kmeans(
         data, k, None,
-        (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 1.0),
-        3, cv2.KMEANS_PP_CENTERS,
+        (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 1.0),
+        5, cv2.KMEANS_PP_CENTERS,
     )
-    counts = np.bincount(labels.flatten(), minlength=k)
-    order = np.argsort(-counts)
+    counts = np.bincount(labels.flatten(), minlength=k).astype(np.float32)
 
+    # Perceptual (Lab) coordinates of each cluster centre, for distance only.
+    centers_u8 = np.clip(np.round(centers), 0, 255).astype(np.uint8)
+    centers_lab = cv2.cvtColor(
+        centers_u8.reshape(k, 1, 3), cv2.COLOR_RGB2LAB
+    ).reshape(k, 3).astype(np.float32)
+
+    # Merge clusters closer than ~16 Lab units (near-identical shades).
+    merged: list[list] = []  # [lab_centre, rgb_centre, count]
+    for idx in np.argsort(-counts):
+        c_lab, c_rgb, cnt = centers_lab[idx], centers[idx], counts[idx]
+        if cnt <= 0:
+            continue
+        for m in merged:
+            if float(np.linalg.norm(m[0] - c_lab)) < 16.0:
+                total = m[2] + cnt
+                m[0] = (m[0] * m[2] + c_lab * cnt) / total
+                m[1] = (m[1] * m[2] + c_rgb * cnt) / total
+                m[2] = total
+                break
+        else:
+            merged.append([c_lab.copy(), c_rgb.copy(), cnt])
+
+    merged.sort(key=lambda m: -m[2])
+
+    total = small.shape[0] * small.shape[1]
     palette = []
-    for idx in order:
-        b, g, r = centers[idx]
+    for _, c_rgb, cnt in merged[:n]:
+        if cnt / total < 0.01:  # skip negligible (<1%) clusters
+            continue
+        r, g, b = (int(np.clip(round(v), 0, 255)) for v in c_rgb)
         h, s, v = colorsys.rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
         palette.append({
-            "hex": f"#{int(r):02x}{int(g):02x}{int(b):02x}",
-            "share": round(float(counts[idx] / labels.size), 4),
+            "hex": f"#{r:02x}{g:02x}{b:02x}",
+            "share": round(float(cnt / total), 4),
             "hue": round(float(h * 360), 1),
             "saturation": round(float(s), 3),
             "value": round(float(v), 3),
+            "name": _color_name(h * 360, s, v),
         })
-    return palette[:n]
+    return palette
 
 
 def analyze(image_path: str, max_dim: int = 512) -> dict:

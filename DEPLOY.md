@@ -1,6 +1,6 @@
-# ☁️ Deploying Chroma
+# ☁️ Deploying Misty Edges
 
-Chroma is a single Dockerised FastAPI app with a static frontend, so it runs
+Misty Edges is a single Dockerised FastAPI app with a static frontend, so it runs
 anywhere that hosts Docker. It needs **~1 GB of RAM** (it loads CLIP +
 ResNet-50 in memory) and will download ~700 MB of model weights once (baked in
 at build time by the Dockerfile).
@@ -48,10 +48,10 @@ is a much better fit for these models.
 ## Option C — Any VPS / self-host
 
 ```bash
-docker build -t chroma .
-docker run -d -p 8000:8000 --name chroma chroma
+docker build -t misty-edges .
+docker run -d -p 8000:8000 --name misty-edges misty-edges
 # put it behind nginx/caddy with TLS, e.g.:
-# caddy reverse-proxy --from chroma.example.com --to localhost:8000
+# caddy reverse-proxy --from misty.example.com --to localhost:8000
 ```
 
 ---
@@ -97,8 +97,8 @@ a billing account (credit card) but stays free for light use.
 ```bash
 gcloud auth login
 gcloud config set run/region asia-south1
-gcloud builds submit --tag gcr.io/$PROJECT/chroma .
-gcloud run deploy chroma --image gcr.io/$PROJECT/chroma --memory 2Gi --cpu 1 \
+gcloud builds submit --tag gcr.io/$PROJECT/misty-edges .
+gcloud run deploy misty-edges --image gcr.io/$PROJECT/misty-edges --memory 2Gi --cpu 1 \
   --port 8000 --allow-unauthenticated
 ```
 

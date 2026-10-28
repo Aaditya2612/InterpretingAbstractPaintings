@@ -1,5 +1,5 @@
 /* ============================================================
-   Chroma — Abstract Painting Interpreter
+   Misty Edges — Interpreting Abstract Paintings
    ============================================================ */
 
 :root {
@@ -95,30 +95,45 @@ body {
 main { max-width: 1180px; margin: 0 auto; padding: 0 clamp(18px, 4vw, 40px); }
 
 /* ---------- Hero ---------- */
-.hero { padding: clamp(44px, 8vw, 96px) 0 clamp(28px, 5vw, 56px); text-align: center; }
-.hero-kicker {
-  font-size: 12px;
-  letter-spacing: 0.32em;
-  color: var(--accent);
-  margin-bottom: 18px;
-  font-weight: 600;
-}
+.hero { padding: clamp(40px, 7vw, 80px) 0 clamp(24px, 4vw, 48px); text-align: center; }
 .hero-title {
   font-family: var(--serif);
   font-weight: 500;
-  font-size: clamp(42px, 8vw, 86px);
-  line-height: 1.02;
+  font-size: clamp(32px, 6.5vw, 62px);
+  line-height: 1.05;
   letter-spacing: -0.02em;
   background: linear-gradient(180deg, #fff 0%, #cfc7d8 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
+.hero-sub-box {
+  max-width: 620px;
+  margin: 28px auto 0;
+  padding: 22px 28px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015));
+  box-shadow: 0 14px 44px -20px rgba(0,0,0,0.65);
+  position: relative;
+}
+.hero-sub-box::before {
+  content: "";
+  position: absolute; inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--grad);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.5;
+  pointer-events: none;
+}
 .hero-sub {
-  max-width: 560px;
-  margin: 22px auto 0;
+  margin: 0;
   color: var(--text-dim);
-  font-size: clamp(15px, 2vw, 17px);
+  font-size: clamp(15px, 2vw, 16.5px);
+  line-height: 1.65;
 }
 
 /* ---------- Dropzone ---------- */
@@ -285,6 +300,27 @@ main { max-width: 1180px; margin: 0 auto; padding: 0 clamp(18px, 4vw, 40px); }
   color: var(--text-faint); margin-bottom: 5px;
 }
 .caption-text { color: var(--text-dim); font-style: italic; }
+
+/* Reading (subject / themes / emotions) */
+.reading-block { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.reading-block:last-child { border-bottom: none; padding-bottom: 2px; }
+.reading-block:first-child { padding-top: 2px; }
+.reading-label {
+  display: block; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--text-faint); margin-bottom: 9px;
+}
+.chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  font-size: 13px; padding: 6px 13px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+  animation: rise .35s both;
+}
+.chip--primary {
+  border-color: rgba(228, 161, 91, 0.45);
+  background: rgba(228, 161, 91, 0.10);
+  color: var(--accent);
+  font-weight: 500;
+}
 
 /* Concepts */
 .concepts-list { list-style: none; display: flex; flex-direction: column; gap: 13px; }

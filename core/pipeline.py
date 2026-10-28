@@ -1,10 +1,10 @@
 """Analysis pipeline: orchestrates every stage and caches results.
 
-The two heavy model stages (concept tagging and the attention heatmap) run in
-parallel on a thread pool, while the lightweight feature extraction runs inline.
-The description and interpretation are then derived instantly from those results.
-Results are cached by the SHA-256 of the raw image bytes, so repeat uploads and
-the sample gallery resolve instantly.
+The two heavy model stages (CLIP recognition and the ResNet-50 attention
+heatmap) run in parallel on a thread pool, while the lightweight feature
+extraction runs inline. The description and interpretation are then derived
+instantly from those results. Results are cached by the SHA-256 of the raw image
+bytes, so repeat uploads and the sample gallery resolve instantly.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from pathlib import Path
 
 import numpy as np
 
-from . import config, describer, features, heatmap, interpreter, tagger
+from . import config, describer, features, heatmap, interpreter, recognizer
 
 # Fallback metrics used if feature extraction ever fails, so the interpreter
 # always has something numeric to work with.
@@ -87,10 +87,10 @@ def run(image_bytes: bytes, original_name: str = "upload") -> dict:
     # Lightweight features first (blocking, ~ms).
     feats = _stage(features.analyze, str(tmp_path))
 
-    # Heavy model stages in parallel (CLIP tagging + ResNet-50 Grad-CAM).
-    concepts_f = _executor.submit(_stage, tagger.tag, str(tmp_path))
+    # Heavy model stages in parallel (CLIP recognition + ResNet-50 Grad-CAM).
+    recognition_f = _executor.submit(_stage, recognizer.recognize, str(tmp_path))
     heatmap_f = _executor.submit(_stage, heatmap.generate, str(tmp_path))
-    concepts = concepts_f.result()
+    recognition = recognition_f.result()
     heatmap_arr = heatmap_f.result()
 
     elapsed_ms = int((time.perf_counter() - started) * 1000)
@@ -98,20 +98,28 @@ def run(image_bytes: bytes, original_name: str = "upload") -> dict:
     # Description + interpretation are derived from the above, instantly.
     if not isinstance(feats, dict) or "error" in feats:
         feats = _DEFAULT_FEATURES
-    if not isinstance(concepts, list):
-        concepts = []
-    description = describer.describe(concepts, feats)
-    concept_labels = [c["label"] for c in concepts]
+    if not isinstance(recognition, dict):
+        recognition = {"concepts": [], "subjects": [], "themes": [], "emotions": []}
+
+    # Blend colour psychology into the emotion scores.
+    recognition["emotions"] = recognizer.rebalance_emotions(
+        recognition.get("emotions", []), feats
+    )
+
+    description = describer.describe(recognition, feats)
     try:
-        interpretation_text, engine = interpreter.interpret(feats, description, concept_labels)
+        interpretation_text, engine = interpreter.interpret(recognition, feats, description)
     except Exception:  # noqa: BLE001
         interpretation_text, engine = "Unable to interpret this image.", "local"
 
     result = {
         "id": key,
         "name": original_name,
-        "caption": description,
-        "concepts": concepts,
+        "subjects": recognition.get("subjects", []),
+        "themes": recognition.get("themes", []),
+        "emotions": recognition.get("emotions", []),
+        "concepts": recognition.get("concepts", []),
+        "description": description,
         "features": feats,
         "interpretation": interpretation_text,
         "engine": engine,
@@ -133,7 +141,7 @@ def run(image_bytes: bytes, original_name: str = "upload") -> dict:
 def status() -> dict:
     """Report which models are loaded, for the /health endpoint."""
     return {
-        "clip": tagger.load_status(),
+        "clip": recognizer.load_status(),
         "resnet50": heatmap.load_status(),
         "groq_configured": bool(config.GROQ_API_KEY),
     }
@@ -142,7 +150,7 @@ def status() -> dict:
 def warmup() -> None:
     """Pre-load all heavy models (call from a background thread)."""
     try:
-        tagger._ensure_loaded()
+        recognizer._ensure_loaded()
         heatmap._ensure_loaded()
     except Exception:  # noqa: BLE001
         pass

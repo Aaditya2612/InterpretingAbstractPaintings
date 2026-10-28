@@ -1,4 +1,4 @@
-/* Chroma — frontend logic */
+/* Misty Edges — frontend logic */
 (() => {
   "use strict";
 
@@ -26,7 +26,7 @@
     contrast: { label: "Contrast", max: 128 },
   };
 
-  const STAGE_ORDER = ["features", "concepts", "caption", "heatmap", "interpret"];
+  const STAGE_ORDER = ["features", "recognize", "heatmap", "interpret"];
 
   // Bump this whenever the result schema changes to invalidate old caches.
   const CACHE_VERSION = "v2";
@@ -93,7 +93,7 @@
 
   function cacheGet(key) {
     try {
-      const raw = localStorage.getItem("chroma:" + CACHE_VERSION + ":" + key);
+      const raw = localStorage.getItem("misty:" + CACHE_VERSION + ":" + key);
       return raw ? JSON.parse(raw) : null;
     } catch {
       return null;
@@ -101,7 +101,7 @@
   }
   function cacheSet(key, value) {
     try {
-      localStorage.setItem("chroma:" + CACHE_VERSION + ":" + key, JSON.stringify(value));
+      localStorage.setItem("misty:" + CACHE_VERSION + ":" + key, JSON.stringify(value));
     } catch { /* quota / privacy */ }
   }
 
@@ -248,7 +248,12 @@
 
     // Interpretation
     $("#interpretationText").textContent = d.interpretation || "";
-    $("#captionText").textContent = d.caption || "";
+    $("#captionText").textContent = d.description || "";
+
+    // Reading: subjects, themes, emotions as chips
+    renderChips($("#subjectChips"), d.subjects, true);
+    renderChips($("#themeChips"), d.themes, false);
+    renderChips($("#emotionChips"), d.emotions, false);
 
     // Concepts
     const conceptsList = $("#conceptsList");
@@ -317,6 +322,24 @@
     return String(s).replace(/[&<>"']/g, (c) => ({
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
     }[c]));
+  }
+
+  function renderChips(container, items, highlightFirst) {
+    container.innerHTML = "";
+    (items || []).forEach((it, i) => {
+      const chip = document.createElement("span");
+      chip.className = "chip" + (highlightFirst && i === 0 ? " chip--primary" : "");
+      chip.style.animationDelay = `${i * 60}ms`;
+      chip.textContent = it.label;
+      chip.title = `${Math.round((it.score || 0) * 100)}% confidence`;
+      container.appendChild(chip);
+    });
+    if (!items || !items.length) {
+      const chip = document.createElement("span");
+      chip.className = "chip";
+      chip.textContent = "—";
+      container.appendChild(chip);
+    }
   }
 
   // ---- Compare (hold-to-compare) ----------------------------------------

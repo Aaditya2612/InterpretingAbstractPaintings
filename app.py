@@ -17,7 +17,7 @@ from starlette.concurrency import run_in_threadpool
 
 from core import config, pipeline
 
-app = FastAPI(title="Abstract Painting Interpreter", version="2.0.0")
+app = FastAPI(title="Misty Edges — Interpreting Abstract Paintings", version="2.1.0")
 
 
 def _heatmap_b64(arr: np.ndarray) -> str | None:

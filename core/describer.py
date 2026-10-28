@@ -1,79 +1,41 @@
-"""Compose a natural, on-theme description of the artwork.
+"""Compose a short, concrete description of what the model "sees".
 
-Instead of a generic BLIP caption (which is slow and frequently nonsensical for
-abstract art), we derive a short, specific description from the CLIP-detected
-concepts and the numeric visual features. This is instant and always relevant.
+Derived from the CLIP recognition (subjects + emotions) and the numeric visual
+features — instant and always on-theme, unlike a generic caption model.
 """
 
 from __future__ import annotations
 
-# Concept label -> opening phrase.
-_STYLE = {
-    "geometric abstraction": "a geometric abstraction",
-    "color field painting": "a color-field composition",
-    "minimalist composition": "a minimalist composition",
-    "chaotic abstract painting": "a chaotic, gestural abstraction",
-    "fragmented cubist planes": "fragmented, cubist planes",
-    "fluid brush strokes": "fluid brushwork",
-    "lyrical swirling lines": "lyrical, swirling line-work",
-    "watercolor wash": "a soft watercolor wash",
-    "oil impasto texture": "thick, impasto oil texture",
-    "organic shapes and forms": "organic, flowing shapes",
-    "dense complex textures": "a dense, heavily-worked surface",
-}
-
 
 def _palette_phrase(features: dict) -> str:
-    colorfulness = features.get("colorfulness", 0)
-    if colorfulness > 100:
-        return "vivid, saturated"
-    if colorfulness < 35:
-        return "restrained, near-monochrome"
-    return "balanced, considered"
+    names = []
+    for c in features.get("dominant_colors", [])[:3]:
+        n = c.get("name")
+        if n and n not in names:
+            names.append(n)
+    if not names:
+        colorfulness = features.get("colorfulness", 0)
+        return "a restrained palette" if colorfulness < 40 else "a rich palette"
+    if len(names) == 1:
+        return f"a palette of {names[0]}"
+    return "a palette of " + ", ".join(names[:-1]) + " and " + names[-1]
 
 
-def _mood_phrase(features: dict) -> str:
-    brightness = features.get("brightness", 128)
-    saturation = features.get("saturation", 64)
-    if brightness < 85:
-        return "dark and brooding"
-    if saturation < 45 and brightness > 180:
-        return "airily contemplative"
-    if saturation > 130:
-        return "exuberant and celebratory"
-    return "calm and atmospheric"
-
-
-def _energy_phrase(features: dict) -> str:
-    edge = features.get("edge_chaos", 0.05)
-    symmetry = features.get("symmetry_score", 0.3)
-    if edge > 0.15:
-        return "restless, energetic motion"
-    if symmetry > 0.55:
-        return "a centered, meditative stillness"
-    return "a gentle, flowing rhythm"
-
-
-def describe(concepts: list[dict], features: dict) -> str:
+def describe(recognition: dict, features: dict) -> str:
     """Return a one-to-two sentence description of the artwork."""
-    labels = [c["label"] for c in (concepts or [])]
+    subjects = recognition.get("subjects", [])
+    emotions = recognition.get("emotions", [])
 
-    if not labels:
-        return "an open, abstract composition with an ambiguous, non-literal presence."
+    subj = subjects[0]["label"] if subjects else "abstract forms"
+    subj2 = subjects[1]["label"] if len(subjects) > 1 else None
+    emotion = emotions[0]["label"] if emotions else "an ambiguous, contemplative mood"
 
-    style = next((l for l in labels if l in _STYLE), labels[0])
-    opener = _STYLE.get(style, style)
-
-    secondary = next((l for l in labels if l != style and l in _STYLE), None)
-    secondary_phrase = _STYLE.get(secondary) if secondary else None
-
-    sentence = f"This reads as {opener}."
-    if secondary_phrase:
-        sentence += f" It carries echoes of {secondary_phrase}."
-    mood = _mood_phrase(features)
-    article = "an" if mood[0] in "aeiou" else "a"
-    sentence += (
-        f" A {_palette_phrase(features)} palette gives it {article} {mood} mood, "
-        f"and the composition moves with {_energy_phrase(features)}."
+    if subj2:
+        return (
+            f"Shapes that call to mind {subj} and {subj2}, rendered in "
+            f"{_palette_phrase(features)} with a feeling of {emotion}."
+        )
+    return (
+        f"Shapes that call to mind {subj}, rendered in "
+        f"{_palette_phrase(features)} with a feeling of {emotion}."
     )
-    return sentence
