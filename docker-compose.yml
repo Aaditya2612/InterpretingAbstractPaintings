@@ -1,0 +1,9 @@
+services:
+  chroma:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - WARMUP=1
+      # - GROQ_API_KEY=your_key_here

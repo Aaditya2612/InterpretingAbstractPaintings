@@ -56,6 +56,54 @@ docker run -d -p 8000:8000 --name chroma chroma
 
 ---
 
+## Option D — Oracle Cloud "Always Free" (free forever, works in India) ★
+
+Oracle's Always Free tier gives a **2-core ARM / 12 GB RAM** VM at no cost,
+forever, and has **India** data centres (Mumbai / Hyderabad). 12 GB is plenty
+for the models. You only need a card for identity verification — it is **never
+charged** on Always Free.
+
+1. Sign up at <https://www.oracle.com/cloud/free/> — pick a **Home region** of
+   **India West (Mumbai)** or **India South (Hyderabad)**.
+2. **Compute → Instances → Create instance**:
+   - Image: **Ubuntu 22.04 / 24.04**
+   - Shape: **Ampere A1 (ARM)**, **2 OCPU / 12 GB RAM** (Always Free)
+   - Generate or paste an **SSH key** so you can log in.
+3. Open a port: **Networking → Virtual Cloud Networks → Security List → Add
+   Ingress Rule** for TCP **8000** (source `0.0.0.0/0`).
+4. SSH in and run:
+
+```bash
+curl -fsSL https://get.docker.com | sh
+git clone https://github.com/Aaditya2612/InterpretingAbstractPaintings.git
+cd InterpretingAbstractPaintings
+docker compose up -d --build   # first build downloads the ~700 MB of models
+```
+
+5. Open `http://<your-vm-public-ip>:8000` — it's live.
+
+The Dockerfile already installs ARM-compatible torch, so it runs unchanged on
+the Ampere (ARM) shape. For HTTPS + a domain (optional but nice), use a free
+Cloudflare Tunnel: `cloudflared tunnel --url http://localhost:8000`.
+
+---
+
+## Option E — Google Cloud Run (free tier, India region)
+
+Cloud Run has a **Mumbai region** (`asia-south1`) and a monthly free allowance
+(180k vCPU-seconds + 360k GiB-seconds ≈ ~50 h/mo on a 2 GB instance). It needs
+a billing account (credit card) but stays free for light use.
+
+```bash
+gcloud auth login
+gcloud config set run/region asia-south1
+gcloud builds submit --tag gcr.io/$PROJECT/chroma .
+gcloud run deploy chroma --image gcr.io/$PROJECT/chroma --memory 2Gi --cpu 1 \
+  --port 8000 --allow-unauthenticated
+```
+
+---
+
 ## Verify it's healthy
 
 Hit `GET /health` — you should see:

@@ -84,12 +84,14 @@ See **[DEPLOY.md](./DEPLOY.md)** for step-by-step guides.
 
 TL;DR — Chroma is a single Dockerised FastAPI app and needs ~1 GB RAM:
 
-- **Hugging Face Spaces (free, 16 GB RAM)** — the easiest $0 option and a great
-  fit for these ML models. The `README.md` front-matter makes it a one-click
-  Docker Space.
+- **Oracle Cloud "Always Free" (free forever, India regions)** — the best free
+  option: a 2-core / 12 GB ARM VM at no cost. See DEPLOY.md for step-by-step.
+- **Google Cloud Run (free tier, Mumbai region)** — serverless; free within the
+  monthly allowance.
+- **Hugging Face Spaces** — note: the free CPU tier was recently removed for
+  new accounts (Docker spaces are now paid).
 - **Render** — use the *Standard* plan (2 GB); the free/Starter tiers are only
   512 MB and will OOM.
-- **Any VPS** — `docker build -t chroma . && docker run -d -p 8000:8000 chroma`.
 
 The frontend is static and the API is stateless (apart from an in-memory result
 cache), so it scales horizontally with a load balancer if needed.
