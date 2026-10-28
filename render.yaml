@@ -1,0 +1,20 @@
+# Render Blueprint — deploys Chroma as a Docker web service.
+# Docs: https://render.com/docs/blueprint-spec
+#
+# NOTE: the ML models (CLIP + ResNet-50) need roughly 1 GB of RAM, so use the
+# "standard" plan (2 GB). The "free" and "starter" tiers are 512 MB and will
+# run out of memory. For a $0 option, see DEPLOY.md → Hugging Face Spaces.
+
+services:
+  - type: web
+    name: chroma
+    runtime: docker
+    repo: https://github.com/Aaditya2612/InterpretingAbstractPaintings
+    plan: standard
+    healthCheckPath: /health
+    envVars:
+      - key: WARMUP
+        value: "1"
+      # Uncomment and add your key to enable Groq-powered interpretation:
+      # - key: GROQ_API_KEY
+      #   sync: false

@@ -18,5 +18,7 @@ heatmap_result.jpg
 .git/
 .gitignore
 README.md
+DEPLOY.md
+render.yaml
 Dockerfile
 .dockerignore

@@ -1,3 +1,13 @@
+---
+title: Chroma — Abstract Painting Interpreter
+emoji: 🎨
+colorFrom: indigo
+colorTo: purple
+sdk: docker
+app_port: 8000
+pinned: false
+---
+
 # 🎨 Chroma — Abstract Painting Interpreter
 
 Upload an abstract painting and let a machine-vision studio analyse its colour,
@@ -70,16 +80,19 @@ docker run -p 8000:8000 -e GROQ_API_KEY=your_key_here chroma
 
 ## ☁️ Deploy
 
-Chroma is a single FastAPI process with a static frontend, so it runs on any
-host that supports Python or Docker:
+See **[DEPLOY.md](./DEPLOY.md)** for step-by-step guides.
 
-- **Render / Railway / Fly.io** — point them at the repo; they detect the
-  Dockerfile or use `uvicorn app:app`. Set `GROQ_API_KEY` in the environment.
-- **Hugging Face Spaces** — Docker SDK.
-- **A VPS** — `docker run -d -p 8000:8000 ...` behind a reverse proxy.
+TL;DR — Chroma is a single Dockerised FastAPI app and needs ~1 GB RAM:
 
-The frontend is static and the API is stateless (apart from an in-memory
-result cache), so it scales horizontally with a load balancer if needed.
+- **Hugging Face Spaces (free, 16 GB RAM)** — the easiest $0 option and a great
+  fit for these ML models. The `README.md` front-matter makes it a one-click
+  Docker Space.
+- **Render** — use the *Standard* plan (2 GB); the free/Starter tiers are only
+  512 MB and will OOM.
+- **Any VPS** — `docker build -t chroma . && docker run -d -p 8000:8000 chroma`.
+
+The frontend is static and the API is stateless (apart from an in-memory result
+cache), so it scales horizontally with a load balancer if needed.
 
 ## ⚙️ Configuration
 
