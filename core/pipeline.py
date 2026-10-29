@@ -102,24 +102,26 @@ def run(image_bytes: bytes, original_name: str = "upload") -> dict:
         recognition = {"concepts": [], "subjects": [], "themes": [], "emotions": []}
 
     # Blend colour psychology into the emotion scores (over the full list, then
-    # keep the top few).
-    recognition["emotions"] = recognizer.rebalance_emotions(
-        recognition.get("emotions", []), feats
-    )[:3]
+    # keep the top few, normalised to sensible probabilities).
+    recognition["emotions"] = recognizer.normalize_scores(
+        recognizer.rebalance_emotions(recognition.get("emotions", []), feats)[:3]
+    )
 
     # Blend geometric structure + art style into the subject scores.
-    recognition["subjects"] = recognizer.rebalance_subjects(
-        recognition.get("subjects", []), feats, recognition.get("concepts", [])
-    )[:4]
+    recognition["subjects"] = recognizer.normalize_scores(
+        recognizer.rebalance_subjects(
+            recognition.get("subjects", []), feats, recognition.get("concepts", [])
+        )[:4]
+    )
 
     # Blend colour mood into the theme scores.
-    recognition["themes"] = recognizer.rebalance_themes(
-        recognition.get("themes", []), feats
-    )[:3]
+    recognition["themes"] = recognizer.normalize_scores(
+        recognizer.rebalance_themes(recognition.get("themes", []), feats)[:3]
+    )
 
     description = describer.describe(recognition, feats)
     try:
-        interpretation_text, engine = interpreter.interpret(recognition, feats, description)
+        interpretation_text, engine = interpreter.interpret(recognition, feats, description, seed=key)
     except Exception:  # noqa: BLE001
         interpretation_text, engine = "Unable to interpret this image.", "local"
 

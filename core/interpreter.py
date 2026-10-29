@@ -124,52 +124,41 @@ def _llm_interpret(recognition: dict, features: dict, description: str) -> str:
 
 # --- Local generator --------------------------------------------------------
 
-def _rng_for(recognition: dict) -> random.Random:
-    seed = "|".join(
-        (recognition.get("subjects") or [{}])[0].get("label", "")
-        + (recognition.get("themes") or [{}])[0].get("label", "")
-        + (recognition.get("emotions") or [{}])[0].get("label", "")
-    )
-    return random.Random(hashlib.md5(seed.encode("utf-8")).hexdigest())
-
-
-def _openings(subj, subj2, emotion, palette, texture, motion, rng):
-    """Distinct frames for how the interpretation can begin."""
-    return rng.choice([
-        # the viewer's eye
+def _openings(subj, subj2, emotion, palette, texture, motion):
+    """All the ways an interpretation can begin — varied in lens and length."""
+    return [
         f"What the eye settles on first is something like {subj} — shapes that hover just "
         f"short of naming themselves, while the whole canvas breathes with {emotion}.",
-        # quiet insistence
         f"There is a quiet insistence to these forms. They keep reaching toward {subj}, "
         f"then refusing to commit — and it is in that refusal that {emotion} takes root.",
-        # temporal shift
         f"Look at it once and it is {subj}; look again and it has already slipped away "
         f"into {palette}, into {emotion}.",
-        # memory / dream
         f"The painting does not so much depict {subj} as half-remember it, the way a dream "
         f"holds an image just out of reach — which is only another way of saying {emotion}.",
-        # weather / sensory
         f"It arrives like weather: {emotion} gathering low over shapes that could be "
         f"{subj}, the whole field of it damp and luminous.",
-        # the artist's hand
         f"You can feel the hand behind it — the confidence of the {texture}, the way the "
         f"{motion} never falters — building toward {subj} without ever quite arriving.",
-        # a story half-told
         f"There is a story being half-told here, and it begins with {subj} caught "
         f"mid-becoming, its edges dissolving into {emotion}.",
-        # the ground of colour first
         f"Before it is anything else, the painting is {palette}; only out of that ground of "
         f"colour do the shapes slowly begin to suggest {subj}.",
-    ])
+        f"{subj}, almost. The eye keeps trying to finish the thought and never quite can.",
+        f"Say it plainly: this is a painting about {emotion}, and {subj} is only the shape "
+        f"that feeling decides to take.",
+        f"There is a sound to it — a low {emotion} hum beneath shapes that read as {subj}.",
+        f"It is not quite {subj}, and not quite not. The in-between is where the whole thing "
+        f"lives, and it feels like {emotion}.",
+    ]
 
 
-def _bodies(subj, theme, theme2, emotion, palette, comp, texture, motion, space, rng):
-    """Distinct ways of weaving theme + form + colour together."""
+def _bodies(subj, theme, theme2, emotion, palette, comp, texture, motion, space):
+    """All the ways of weaving theme + form + colour together."""
     and2 = f" and {theme2}" if theme2 else ""
-    return rng.choice([
+    return [
         f"Beneath all of it the work circles {theme}{and2}. The {comp} gives it an armature, "
         f"while the {texture} stays alive under the eye and the {motion} refuses to let it rest.",
-        f"There is a slow argument being made about {theme}{and2}. {palette} does much of the "
+        f"There is a slow argument being made about {theme}{and2}. {palette.capitalize()} does much of the "
         f"talking — each colour pressing against the next — while the {comp} holds the whole "
         f"thing in a fragile order.",
         f"Look past the first impression and the painting opens onto {theme}{and2}. The "
@@ -178,7 +167,7 @@ def _bodies(subj, theme, theme2, emotion, palette, comp, texture, motion, space,
         f"The {comp} keeps the eye circling, never letting it rest, and in that circling "
         f"{theme}{and2} begins to surface. The {texture} complicates it; the {motion} "
         f"resolves it, briefly.",
-        f"Colour does most of the emotional work here. {palette} sets a {emotion} key, and "
+        f"Colour does most of the emotional work here. {palette.capitalize()} sets a {emotion} key, and "
         f"the shapes — {subj} — seem to strain against it, which becomes its own small drama "
         f"about {theme}{and2}.",
         f"There is a feeling of {theme}{and2} woven into the very {texture} of it, the "
@@ -189,49 +178,49 @@ def _bodies(subj, theme, theme2, emotion, palette, comp, texture, motion, space,
         f"hangs, unresolved.",
         f"It reads almost as a diagram of {theme}{and2}: the {motion} mapped onto {palette}, "
         f"the {comp} standing in for structure, the {texture} for time itself.",
-    ])
+        f"The {motion} is the key; everything else — {palette}, the {comp} — follows from it.",
+        f"Notice how {palette} refuses to settle, how the {comp} keeps shifting under the gaze. "
+        f"That restlessness is {theme}{and2}, refusing to be pinned down.",
+        f"Think of {theme}{and2} as the weather of the piece: it is in the {texture}, in the "
+        f"{motion}, in the way the {comp} holds or lets go.",
+        f"There is a patience to it. The {texture} and the {motion} do not hurry, and in that "
+        f"slowness {theme}{and2} has room to breathe.",
+    ]
 
 
-def _closings(subj, subj2, theme, theme2, emotion, emotion2, palette, comp, light, rng):
-    """Distinct 'original readings' the interpretation can land on."""
+def _closings(subj, subj2, theme, theme2, emotion, emotion2, palette, comp, light):
+    """All the ways an interpretation can resolve — the 'original readings'."""
     other = subj2 if subj2 else "something else entirely"
     theme_other = theme2 if theme2 else "its opposite"
-    return rng.choice([
-        # memory
+    return [
         f"What lingers afterward is less an image than a memory of {subj} — the way a "
         f"half-forgotten place returns not as a picture but as a temperature and a light.",
-        # music
         f"Heard as music, it is not a melody but a held chord — {emotion} sustained in the "
         f"air, with {theme} as its slow, patient bass line.",
-        # becoming
         f"It is, in the end, a painting about becoming: {subj} caught in the instant before "
         f"it turns into {other}, {theme} held open between two states.",
-        # unresolved tension
         f"Two impulses are locked in a quiet standoff here — {theme} against {theme_other} — "
         f"and the painting declines to take sides, leaving a tension the eye can feel but "
         f"never quite resolve.",
-        # private logic
         f"There is a private logic to this work, a rule the artist kept to themselves; "
         f"{subj} is its visible trace, and {emotion} the thing it leaves behind in you.",
-        # an open question
         f"It asks something of you without quite saying it — a question about {theme} that it "
         f"leaves open, so that every viewer answers differently.",
-        # dream at noon
         f"The whole thing has the texture of a dream remembered at noon: {subj} recognisable "
         f"for a second, then gone, leaving only {emotion}.",
-        # light
         f"In the end it is a study of {light} — the way {palette} holds it, the way {emotion} "
         f"moves through it, the way the {comp} lets it fall.",
-        # contradiction
         f"It wants two opposite things at once — the order of {theme} and the drift of "
         f"{emotion} — and it is exactly that contradiction that keeps it alive.",
-        # invitation
         f"The painting rewards the slow glance: return to it in a different mood and it will "
         f"have become a different {subj}, {theme} gone quiet under a different {emotion}.",
-    ])
+        f"Almost, but not quite. Which is, perhaps, the point.",
+        f"Maybe the truest thing to say is this: the painting does not need {subj} to mean "
+        f"anything at all. {emotion} is enough.",
+    ]
 
 
-def _local_interpret(recognition: dict, features: dict, description: str) -> str:
+def _local_interpret(recognition: dict, features: dict, description: str, seed: str | None = None) -> str:
     subjects = [s["label"] for s in recognition.get("subjects", [])]
     themes = [t["label"] for t in recognition.get("themes", [])]
     emotions = [e["label"] for e in recognition.get("emotions", [])]
@@ -250,19 +239,46 @@ def _local_interpret(recognition: dict, features: dict, description: str) -> str
     light = _light_phrase(features)
     space = _space_phrase(features)
 
-    rng = _rng_for(recognition)
-    opening = _openings(subj, subj2, emotion, palette, texture, motion, rng)
-    body = _bodies(subj, theme, theme2, emotion, palette, comp, texture, motion, space, rng)
-    closing = _closings(subj, subj2, theme, theme2, emotion, emotion2, palette, comp, light, rng)
+    # Seed by the image hash (or, failing that, the detected labels) so every
+    # *different* painting gets a different reading, while the *same* painting
+    # stays consistent.
+    if seed is None:
+        seed = hashlib.md5(
+            "|".join(subjects + themes + emotions).encode("utf-8")
+        ).hexdigest()
+    rng = random.Random(seed)
 
-    return f"{opening} {body} {closing}"
+    openings = _openings(subj, subj2, emotion, palette, texture, motion)
+    bodies = _bodies(subj, theme, theme2, emotion, palette, comp, texture, motion, space)
+    closings = _closings(subj, subj2, theme, theme2, emotion, emotion2, palette, comp, light)
+
+    opening = rng.choice(openings)
+    body = rng.choice(bodies)
+    body2 = rng.choice([b for b in bodies if b != body] or bodies)
+    closing = rng.choice(closings)
+
+    # Structural variety: the number and order of beats differs per painting.
+    shape = rng.choices(
+        ["abc", "ab", "ac", "abbc", "bc"],
+        weights=[5, 2, 2, 2, 1],
+    )[0]
+
+    if shape == "abc":
+        return f"{opening} {body} {closing}"
+    if shape == "ab":
+        return f"{opening} {body}"
+    if shape == "ac":
+        return f"{opening} {closing}"
+    if shape == "abbc":
+        return f"{opening} {body} {body2} {closing}"
+    return f"{body} {closing}"
 
 
-def interpret(recognition: dict, features: dict, description: str) -> tuple[str, str]:
+def interpret(recognition: dict, features: dict, description: str, seed: str | None = None) -> tuple[str, str]:
     """Return ``(text, engine)`` where engine is "groq" or "local"."""
     if config.GROQ_API_KEY:
         try:
             return _llm_interpret(recognition, features, description), "groq"
         except Exception:
-            return _local_interpret(recognition, features, description), "local"
-    return _local_interpret(recognition, features, description), "local"
+            return _local_interpret(recognition, features, description, seed), "local"
+    return _local_interpret(recognition, features, description, seed), "local"

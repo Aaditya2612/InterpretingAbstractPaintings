@@ -204,6 +204,18 @@ def _softmax(x: np.ndarray) -> np.ndarray:
     return e / e.sum()
 
 
+def normalize_scores(items: list[dict]) -> list[dict]:
+    """Softmax-normalise a list of {label, score} so scores are real probabilities
+    that sum to 1 (used on the final top-k to make confidence meaningful)."""
+    if not items:
+        return items
+    arr = np.array([it["score"] for it in items], dtype=np.float64)
+    probs = _softmax(arr)
+    for it, p in zip(items, probs):
+        it["score"] = round(float(p), 4)
+    return items
+
+
 def recognize(image_path: str) -> dict[str, list[dict]]:
     """Score the image against every category and return the top matches."""
     _ensure_loaded()
