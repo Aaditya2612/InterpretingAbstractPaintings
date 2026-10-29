@@ -148,12 +148,12 @@ _TEMPLATES = {
     "emotions": ["a painting that feels {}", "artwork expressing {}", "{}"],
 }
 
-# (name, vocabulary, top_k). Subjects and emotions return the full list so their
-# rebalancing can promote/demote across the whole vocabulary before top-k is picked.
+# (name, vocabulary, top_k). Subjects, themes and emotions return the full list
+# so their rebalancing can promote/demote across the whole vocabulary first.
 _CATEGORIES = [
     ("concepts", CONCEPTS, 5),
     ("subjects", SUBJECTS, len(SUBJECTS)),
-    ("themes", THEMES, 3),
+    ("themes", THEMES, len(THEMES)),
     ("emotions", EMOTIONS, len(EMOTIONS)),
 ]
 
@@ -256,16 +256,10 @@ def load_status() -> bool:
     return _model is not None
 
 
-# --- Colour-grounded emotion rebalancing ------------------------------------
+# --- Colour flags (shared by emotion and theme rebalancing) -----------------
 
-def rebalance_emotions(emotions: list[dict], features: dict) -> list[dict]:
-    """Re-weight CLIP emotion scores with colour psychology.
-
-    CLIP's raw emotion scores are near-uniform for abstract art (essentially
-    noise), so colour is treated as the decisive signal here: we compute the
-    image's warm/cool, dark/bright, muted/vivid and energetic character, then
-    strongly promote or suppress each emotion accordingly.
-    """
+def _color_flags(features: dict) -> dict:
+    """Booleans characterising the image's colour mood."""
     b = features.get("brightness", 128)
     s = features.get("saturation", 64)
     cf = features.get("colorfulness", 0)
@@ -274,14 +268,31 @@ def rebalance_emotions(emotions: list[dict], features: dict) -> list[dict]:
     palette = features.get("dominant_colors", [])
     warm_share = sum(c["share"] for c in palette if c.get("hue", 0) < 70 or c.get("hue", 0) > 320)
     cool_share = sum(c["share"] for c in palette if 160 <= c.get("hue", 0) <= 270)
-
     warm = warm_share >= 0.30 and warm_share > cool_share
     cool = cool_share >= 0.30 and cool_share > warm_share
-    dark = b < 95
-    bright = b > 180
-    muted = s < 55
-    vivid = cf > 70 or (s > 110 and warm)
-    energetic = edge > 0.12
+
+    return {
+        "warm": warm,
+        "cool": cool,
+        "dark": b < 95,
+        "bright": b > 180,
+        "muted": s < 55,
+        "vivid": cf > 70 or (s > 110 and warm),
+        "energetic": edge > 0.12,
+    }
+
+
+def rebalance_emotions(emotions: list[dict], features: dict) -> list[dict]:
+    """Re-weight CLIP emotion scores with colour psychology.
+
+    CLIP's raw emotion scores are near-uniform for abstract art (essentially
+    noise), so colour is treated as the decisive signal here.
+    """
+    f = _color_flags(features)
+    warm, cool = f["warm"], f["cool"]
+    dark, bright = f["dark"], f["bright"]
+    muted, vivid = f["muted"], f["vivid"]
+    energetic = f["energetic"]
 
     # Each emotion: (boost_condition, damp_condition). Conditions are deliberately
     # discriminating (warm/cool × dark/bright × muted/vivid) so a single "catch-all"
@@ -326,7 +337,56 @@ def rebalance_emotions(emotions: list[dict], features: dict) -> list[dict]:
     return out
 
 
-# --- Geometry-grounded subject rebalancing ----------------------------------
+# --- Colour-grounded theme rebalancing --------------------------------------
+
+_THEME_RULES = {
+    "the passage of time":      (lambda f: f["muted"], lambda f: f["vivid"]),
+    "chaos and order":          (lambda f: f["energetic"] or (f["vivid"] and not f["muted"]), lambda f: f["muted"] and not f["energetic"]),
+    "solitude and isolation":   (lambda f: f["dark"] or f["cool"], lambda f: f["warm"] and f["bright"]),
+    "growth and decay":         (lambda f: f["muted"] or f["dark"], lambda f: f["vivid"] and f["bright"]),
+    "inner turmoil":            (lambda f: f["vivid"] and f["dark"], lambda f: f["bright"] and f["muted"]),
+    "harmony and balance":      (lambda f: f["bright"] or f["cool"], lambda f: f["vivid"] and f["dark"]),
+    "longing and nostalgia":    (lambda f: f["muted"], lambda f: f["vivid"]),
+    "celebration of life":      (lambda f: f["vivid"] and f["warm"], lambda f: f["dark"]),
+    "the power of nature":      (lambda f: f["vivid"] or f["energetic"], lambda f: f["muted"] and not f["energetic"]),
+    "spiritual transcendence":  (lambda f: f["cool"] or f["bright"], lambda f: f["dark"]),
+    "memory and loss":          (lambda f: f["muted"] or f["dark"], lambda f: f["vivid"] and f["bright"]),
+    "freedom and movement":     (lambda f: f["energetic"], lambda f: f["muted"] and not f["energetic"]),
+    "the sublime":              (lambda f: f["cool"] or f["dark"] or f["vivid"], lambda f: False),
+    "rebirth and renewal":      (lambda f: f["bright"] and f["warm"], lambda f: f["dark"]),
+    "quiet contemplation":      (lambda f: f["muted"] or f["cool"], lambda f: f["vivid"] and f["warm"]),
+    "connection and unity":     (lambda f: f["bright"] or f["warm"], lambda f: f["dark"]),
+    "the cycle of seasons":     (lambda f: f["warm"] and f["muted"], lambda f: False),
+    "dreams and the subconscious": (lambda f: f["muted"] or f["dark"], lambda f: f["vivid"] and f["bright"]),
+    "the fragility of life":    (lambda f: f["muted"] and f["dark"], lambda f: f["vivid"] and f["bright"]),
+    "the meeting of opposites": (lambda f: f["energetic"] and f["vivid"], lambda f: False),
+    "eternity and the infinite": (lambda f: f["cool"] or f["dark"], lambda f: False),
+    "childhood wonder":         (lambda f: f["bright"] and f["warm"], lambda f: f["dark"]),
+    "the fleeting moment":      (lambda f: f["bright"] and f["muted"], lambda f: f["dark"]),
+    # sacred geometry is handled by geometry (structure), not colour.
+}
+
+
+def rebalance_themes(themes: list[dict], features: dict) -> list[dict]:
+    """Re-weight theme scores with the colour mood (warm/cool, dark/bright, etc.)."""
+    f = _color_flags(features)
+    structure = features.get("structure", {})
+    geometric = structure.get("rotational", 0.0) > 0.3
+
+    out = []
+    for t in themes:
+        label, score = t["label"], t["score"]
+        boost, damp = _THEME_RULES.get(label, (lambda _: False, lambda _: False))
+        if label == "sacred geometry":
+            if geometric:
+                score *= 2.5
+        elif damp(f):
+            score *= 0.3
+        elif boost(f):
+            score *= 3.0
+        out.append({"label": label, "score": round(float(score), 4)})
+    out.sort(key=lambda x: -x["score"])
+    return out
 
 # Subjects grouped by the low-level structure they imply. Blended with CLIP so
 # subject detection uses two independent signals (semantic + geometric).
@@ -345,18 +405,40 @@ _RADIAL_SUBJECTS = {
     "nebulae in space", "lichen on stone", "a topographic map",
 }
 
+# The artistic *style* detected by CLIP also constrains the plausible subjects.
+_CONCEPT_SUBJECTS = {
+    "geometric abstraction": {"geometric patterns", "a city skyline", "a topographic map", "a spider's web", "glass reflections"},
+    "fragmented cubist planes": {"geometric patterns", "a city skyline", "glass reflections"},
+    "organic shapes and forms": {"flower petals", "a blooming garden", "coral reefs", "lichen on stone", "tree branches", "veins of marble", "a forest canopy"},
+    "fluid brush strokes": {"ocean waves", "a whirlpool", "swirling smoke", "flowing fabric", "ocean currents", "sea foam"},
+    "lyrical swirling lines": {"a whirlpool", "swirling smoke", "flowing fabric", "ocean currents", "a river delta"},
+    "color field painting": {"drifting clouds", "sand dunes", "a desert vista", "a lunar surface", "sea foam", "a sunrise"},
+    "soothing pastel palette": {"drifting clouds", "sand dunes", "a desert vista", "sea foam", "a sunrise", "melting ice"},
+    "watercolor wash": {"drifting clouds", "a desert vista", "sea foam", "a sunrise", "melting ice"},
+    "energetic dynamic motion": {"a rushing waterfall", "lava flows", "flames and fire", "storm clouds", "a whirlpool"},
+    "chaotic abstract painting": {"flames and fire", "storm clouds", "a whirlpool", "lava flows"},
+    "dense complex textures": {"veins of marble", "lichen on stone", "tree branches", "coral reefs"},
+    "minimalist composition": {"geometric patterns", "a desert vista", "sea foam", "a lunar surface", "drifting clouds"},
+    "calm balanced composition": {"a desert vista", "sea foam", "a sunrise", "drifting clouds", "a lunar surface"},
+    "dark emotional tone": {"storm clouds", "a forest canopy", "melting ice", "a lunar surface"},
+}
 
-def rebalance_subjects(subjects: list[dict], features: dict) -> list[dict]:
-    """Re-weight subject scores with the image's geometric structure.
 
-    CLIP text matching is weakest for abstract art; geometry is a reliable,
-    independent signal. Horizontal banding favours landscapes/seas/skies,
-    vertical lines favour forests/cities/rain, and rotational symmetry favours
-    flowers/mandalas/whirlpools.
+def rebalance_subjects(subjects: list[dict], features: dict, concepts: list[dict] | None = None) -> list[dict]:
+    """Re-weight subject scores with geometry *and* the detected art style.
+
+    CLIP text matching is weakest for abstract art; geometry (horizontal/vertical/
+    radial structure) and the art style (geometric vs organic vs fluid, etc.) are
+    reliable independent signals that keep the subjects self-consistent.
     """
     structure = features.get("structure", {})
     horizontal = structure.get("horizontal", 0.5)   # >0.5 = horizontal bands
     rotational = structure.get("rotational", 0.0)   # 0..1
+
+    # Style-consistent subjects, from the top detected concepts.
+    style_subjects: set[str] = set()
+    for c in (concepts or [])[:3]:
+        style_subjects |= _CONCEPT_SUBJECTS.get(c.get("label", ""), set())
 
     out = []
     for s in subjects:
@@ -368,6 +450,8 @@ def rebalance_subjects(subjects: list[dict], features: dict) -> list[dict]:
             m *= 1.0 + 1.2 * (horizontal - 0.5)
         if label in _VERTICAL_SUBJECTS:
             m *= 1.0 + 1.2 * (0.5 - horizontal)
+        if label in style_subjects:
+            m *= 1.4
         out.append({"label": label, "score": round(float(score * m), 4)})
     out.sort(key=lambda x: -x["score"])
     return out

@@ -107,10 +107,15 @@ def run(image_bytes: bytes, original_name: str = "upload") -> dict:
         recognition.get("emotions", []), feats
     )[:3]
 
-    # Blend geometric structure into the subject scores (same idea).
+    # Blend geometric structure + art style into the subject scores.
     recognition["subjects"] = recognizer.rebalance_subjects(
-        recognition.get("subjects", []), feats
+        recognition.get("subjects", []), feats, recognition.get("concepts", [])
     )[:4]
+
+    # Blend colour mood into the theme scores.
+    recognition["themes"] = recognizer.rebalance_themes(
+        recognition.get("themes", []), feats
+    )[:3]
 
     description = describer.describe(recognition, feats)
     try:
